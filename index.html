@@ -235,18 +235,20 @@ async function generate() {
 }
 
 
+
 async function copyJSON() {
   if (!generatedJSON) {
-    alert("Generate your announcement JSON first.");
+    $("status").textContent =
+      "Generate your announcement JSON first.";
     return;
   }
 
   const field = document.createElement("textarea");
   field.value = generatedJSON;
-  field.readOnly = true;
+  field.setAttribute("readonly", "");
   field.style.position = "fixed";
-  field.style.left = "0";
   field.style.top = "0";
+  field.style.left = "0";
   field.style.width = "1px";
   field.style.height = "1px";
   field.style.opacity = "0";
@@ -264,9 +266,8 @@ async function copyJSON() {
     copied = false;
   }
 
-  field.remove();
-
-  if (!copied && navigator.clipboard?.writeText) {
+  if (!copied && navigator.clipboard &&
+      window.isSecureContext) {
     try {
       await navigator.clipboard.writeText(generatedJSON);
       copied = true;
@@ -275,15 +276,17 @@ async function copyJSON() {
     }
   }
 
+  field.remove();
+
   if (copied) {
     $("status").textContent =
-      "Copied! Open GitHub and paste the JSON.";
+      "JSON copied! Open GitHub and paste it.";
   } else {
     $("status").textContent =
-      "Automatic copying is unavailable on this device.";
-    alert("Your browser blocked automatic copying.");
+      "Automatic copying failed. Select and copy the generated JSON manually.";
   }
 }
+
 
 
 $("previewButton").addEventListener(
