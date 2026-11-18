@@ -1,1 +1,264 @@
 
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCC Publishing Dashboard</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #0b1420;
+  color: #f5f5f5;
+  font-family: Arial, sans-serif;
+}
+main {
+  max-width: 680px;
+  margin: auto;
+  padding: 24px 16px;
+}
+h1 { color: #c9ad68; }
+p { line-height: 1.5; }
+label {
+  display: block;
+  margin: 18px 0 6px;
+  font-weight: bold;
+}
+input, textarea, select {
+  width: 100%;
+  padding: 13px;
+  border: 1px solid #627184;
+  border-radius: 8px;
+  background: #182738;
+  color: white;
+  font: inherit;
+}
+textarea { min-height: 150px; }
+button, .link {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 14px;
+  border: 0;
+  border-radius: 8px;
+  background: #c9ad68;
+  color: #111;
+  font-weight: bold;
+  text-align: center;
+  text-decoration: none;
+  font-size: 16px;
+  cursor: pointer;
+}
+.panel {
+  background: #172536;
+  border-radius: 12px;
+  padding: 18px;
+  margin-top: 22px;
+  overflow-wrap: anywhere;
+}
+small { color: #b6c2ce; }
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+#result { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>🌌 CCC Publishing Dashboard</h1>
+  <p>Church of Cosmic Consciousness</p>
+  <p>One Reality. Infinite Expressions.
+  No Fundamental Division.</p>
+
+  <div class="panel">
+    <h2>New Announcement</h2>
+
+    <label for="title">Announcement Title</label>
+    <input id="title" maxlength="150"
+      placeholder="Enter announcement title">
+
+    <label for="category">Category</label>
+    <select id="category">
+      <option>Network Announcement</option>
+      <option>Church News</option>
+      <option>New Publication</option>
+      <option>Educational Update</option>
+      <option>Community Event</option>
+      <option>Spiritual Reflection</option>
+    </select>
+
+    <label for="body">Announcement Message</label>
+    <textarea id="body"
+      placeholder="Write your announcement..."></textarea>
+
+    <label for="url">Read More Link</label>
+    <input id="url" type="url"
+      value="https://ccconsciousness.github.io/Church-of-Cosmic-Consciousness/#broadcast">
+
+    <button id="previewButton">
+      Preview Announcement
+    </button>
+    <button id="generateButton">
+      Generate Updated JSON
+    </button>
+  </div>
+
+  <div class="panel" id="preview">
+    <h2>Announcement Preview</h2>
+    <p>Write an announcement and tap Preview.</p>
+  </div>
+
+  <div class="panel" id="result">
+    <h2>Ready for GitHub</h2>
+    <p id="status"></p>
+    <button id="copyButton">
+      Copy Updated JSON
+    </button>
+    <a class="link" id="githubLink"
+      href="https://github.com/ccconsciousness/Church-of-Cosmic-Consciousness/edit/main/announcements.json"
+      target="_blank" rel="noopener noreferrer">
+      Open GitHub Announcement Editor
+    </a>
+    <small>
+      Replace the contents of announcements.json
+      with the copied JSON, then commit changes.
+      GitHub will update the RSS feed automatically.
+    </small>
+  </div>
+</main>
+
+<script>
+"use strict";
+
+const base =
+  "https://ccconsciousness.github.io/" +
+  "Church-of-Cosmic-Consciousness/";
+
+const $ = id => document.getElementById(id);
+let generatedJSON = "";
+
+function values() {
+  return {
+    title: $("title").value.trim(),
+    category: $("category").value,
+    body: $("body").value.trim(),
+    url: $("url").value.trim()
+  };
+}
+
+function validate(v) {
+  if (!v.title || !v.body) {
+    throw new Error(
+      "Please enter a title and message."
+    );
+  }
+  if (!v.url || !/^https?:$/.test(
+    new URL(v.url).protocol
+  )) {
+    throw new Error("Enter a valid web link.");
+  }
+}
+
+function preview() {
+  const v = values();
+  const panel = $("preview");
+  panel.replaceChildren();
+
+  const heading = document.createElement("h2");
+  heading.textContent = v.title || "Untitled";
+  panel.append(heading);
+
+  const category = document.createElement("small");
+  category.textContent = v.category;
+  panel.append(category);
+
+  const message = document.createElement("p");
+  message.style.whiteSpace = "pre-wrap";
+  message.textContent = v.body || "No message yet.";
+  panel.append(message);
+}
+
+async function generate() {
+  $("result").style.display = "none";
+  const v = values();
+
+  try {
+    validate(v);
+
+    const response = await fetch(
+      base + "announcements.json?t=" + Date.now(),
+      { cache: "no-store" }
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        "Could not load current announcements."
+      );
+    }
+
+    const data = await response.json();
+
+    if (!Array.isArray(data.posts)) {
+      throw new Error("Invalid announcement data.");
+    }
+
+    const now = new Date();
+    const id = "ccc-" + now.toISOString()
+      .replace(/[^0-9]/g, "");
+
+    data.posts.push({
+      id,
+      title: v.title,
+      date: now.toISOString(),
+      category: v.category,
+      body: v.body,
+      url: v.url
+    });
+
+    generatedJSON = JSON.stringify(data, null, 2);
+
+    $("status").textContent =
+      "Prepared " + data.posts.length +
+      " total announcements, including your new post.";
+
+    $("result").style.display = "block";
+    $("result").scrollIntoView({
+      behavior: "smooth"
+    });
+
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function copyJSON() {
+  try {
+    await navigator.clipboard.writeText(generatedJSON);
+    $("status").textContent =
+      "Copied! Open GitHub and paste the JSON.";
+  } catch (error) {
+    const field = document.createElement("textarea");
+    field.value = generatedJSON;
+    field.style.minHeight = "200px";
+    $("result").append(field);
+    field.select();
+    $("status").textContent =
+      "Select and copy the JSON shown below.";
+  }
+}
+
+$("previewButton").addEventListener(
+  "click", preview
+);
+$("generateButton").addEventListener(
+  "click", generate
+);
+$("copyButton").addEventListener(
+  "click", copyJSON
+);
+</script>
+</body>
+</html>
