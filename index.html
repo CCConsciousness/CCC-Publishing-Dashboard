@@ -73,6 +73,16 @@ pre {
   <p>One Reality. Infinite Expressions.
   No Fundamental Division.</p>
 
+  <div class="panel" id="authPanel">
+    <h2>Administrator Sign In</h2>
+    <p id="authStatus" role="status">Sign in to publish directly to Firebase. The JSON generator remains available below.</p>
+    <label for="adminEmail">Email</label>
+    <input id="adminEmail" type="email" autocomplete="username" placeholder="Administrator email">
+    <label for="adminPassword">Password</label>
+    <input id="adminPassword" type="password" autocomplete="current-password" placeholder="Password">
+    <button id="signInButton" type="button">Sign In</button>
+    <button id="signOutButton" type="button" hidden>Sign Out</button>
+  </div>
   <div class="panel">
     <h2>New Announcement</h2>
 
@@ -101,6 +111,8 @@ pre {
     <button id="previewButton">
       Preview Announcement
     </button>
+    <button id="publishFirebaseButton" type="button" disabled>Publish to Firebase (Sign In Required)</button>
+    <p id="publishStatus" role="status" aria-live="polite"></p>
     <button id="generateButton">
       Generate Updated JSON
     </button>
@@ -298,6 +310,65 @@ $("generateButton").addEventListener(
 $("copyButton").addEventListener(
   "click", copyJSON
 );
+</script>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-firestore.js";
+const config = {
+  apiKey: "AIzaSyAh7nSd5szySNnOaLxNo2yGWBwmJx2c7I8",
+  authDomain: "ccc-cosmic-broadcast-network.firebaseapp.com",
+  projectId: "ccc-cosmic-broadcast-network",
+  storageBucket: "ccc-cosmic-broadcast-network.firebasestorage.app",
+  messagingSenderId: "317799195252",
+  appId: "1:317799195252:web:f92bd63d593d82b25ee721"
+};
+const app = initializeApp(config);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const el = id => document.getElementById(id);
+const publish = el("publishFirebaseButton");
+const status = el("authStatus");
+onAuthStateChanged(auth, user => {
+  publish.disabled = !user;
+  publish.textContent = user ? "Publish to Firebase" : "Publish to Firebase (Sign In Required)";
+  el("signOutButton").hidden = !user;
+  el("signInButton").hidden = !!user;
+  el("adminPassword").value = "";
+  status.textContent = user ? "Signed in as " + user.email + ". Publishing is subject to Firestore administrator rules." : "Sign in to publish directly to Firebase. The JSON generator remains available below.";
+});
+el("signInButton").addEventListener("click", async () => {
+  status.textContent = "Signing in…";
+  try {
+    await signInWithEmailAndPassword(auth, el("adminEmail").value.trim(), el("adminPassword").value);
+  } catch (e) { status.textContent = "Sign in failed: " + e.message; }
+});
+el("signOutButton").addEventListener("click", async () => {
+  try { await signOut(auth); } catch (e) { status.textContent = "Sign out failed: " + e.message; }
+});
+publish.addEventListener("click", async () => {
+  const output = el("publishStatus");
+  if (!auth.currentUser) { output.textContent = "Please sign in first."; return; }
+  const title = el("title").value.trim();
+  const body = el("body").value.trim();
+  const url = el("url").value.trim();
+  if (!title || !body) { output.textContent = "Enter an announcement title and message."; return; }
+  try {
+    if (!/^https?:$/.test(new URL(url).protocol)) throw Error("Enter a valid web link.");
+  } catch { output.textContent = "Enter a valid web link."; return; }
+  publish.disabled = true;
+  output.textContent = "Publishing…";
+  try {
+    await addDoc(collection(db, "announcements"), {
+      title, body, category: el("category").value, url,
+      date: new Date().toISOString(), createdAt: serverTimestamp()
+    });
+    output.textContent = "Published to Firebase successfully. Check the CCC Broadcast Center.";
+  } catch (e) {
+    output.textContent = "Publishing failed: " + e.message + ". Confirm this account's UID matches the Firestore administrator rule.";
+  } finally { publish.disabled = !auth.currentUser; }
+});
 </script>
 </body>
 </html>
